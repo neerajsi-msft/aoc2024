@@ -1,5 +1,4 @@
 use std::{
-    cmp::Ordering,
     env,
     error::Error,
     fs::File,
@@ -64,12 +63,8 @@ fn safe_report(report: &Vec<i32>) -> bool {
     for i in 0..(report.len() - 1) {
         let mut delta = report[i + 1] - report[i];
 
-        let new_direction = (delta >= 0);
-
         if direction == None {
-            direction = Some(new_direction);
-        } else if (direction.unwrap() != new_direction) {
-            return false;
+            direction = Some(delta >= 0);
         }
 
         if !direction.unwrap() {
@@ -85,15 +80,18 @@ fn safe_report(report: &Vec<i32>) -> bool {
     true
 }
 
-fn safe_report_dampener(report : &Vec<i32>) -> bool
-{
+fn safe_report_dampener(report: &Vec<i32>) -> bool {
     if report.len() < 3 {
         return false;
     }
 
-    let deltas : Vec<i32> = report.as_slice().windows(2).map(|vals|{vals[1] - vals[0]}).collect();
+    let deltas: Vec<i32> = report
+        .as_slice()
+        .windows(2)
+        .map(|vals| vals[1] - vals[0])
+        .collect();
 
-    //   1       4      2      3 
+    //   1       4      2      3
     //       3      -2      1
     //
     //   1       4      3      4
@@ -113,22 +111,23 @@ fn safe_report_dampener(report : &Vec<i32>) -> bool
         if delta == 0 {
             zero_count += 1;
             zero_pos = Some(i);
-
         } else if delta > 0 {
             increase_count += 1;
             increase_pos = Some(i);
-
         } else {
             decrease_count += 1;
             decrease_pos = Some(i);
         }
 
-        if (delta < -3 || delta > 3) {
-            oob_pos = if oob_pos.is_none() { Some(i) } else {oob_pos};
+        if delta < -3 || delta > 3 {
+            oob_pos = if oob_pos.is_none() { Some(i) } else { oob_pos };
         }
     }
 
-    println!("\tzero:{zero_count} increase:{increase_count} decrease:{decrease_count} oob:{:?}", oob_pos);
+    println!(
+        "\tzero:{zero_count} increase:{increase_count} decrease:{decrease_count} oob:{:?}",
+        oob_pos
+    );
 
     if zero_count != 0 {
         if zero_count > 1 {
@@ -148,7 +147,7 @@ fn safe_report_dampener(report : &Vec<i32>) -> bool
 
         return safe_report(&new_report);
     } else {
-        let try_remove = |pos : usize| {
+        let try_remove = |pos: usize| {
             let mut new_report = report.clone();
             new_report.remove(pos);
             return safe_report(&new_report);
@@ -160,7 +159,6 @@ fn safe_report_dampener(report : &Vec<i32>) -> bool
             if increase_count > 1 && decrease_count > 1 {
                 return false;
             }
-
 
             if increase_count == 1 {
                 remove_loc = increase_pos.unwrap();
@@ -179,7 +177,7 @@ fn safe_report_dampener(report : &Vec<i32>) -> bool
 fn safe_reports(reports: &Vec<Vec<i32>>) -> Result<(), Box<dyn Error>> {
     let mut report_index = 0u32;
     let mut safe_reports: u32 = 0u32;
-    let mut safe_reports_dampener : u32 = 0u32;
+    let mut safe_reports_dampener: u32 = 0u32;
 
     for report in reports {
         if report.len() < 2 {
@@ -189,7 +187,7 @@ fn safe_reports(reports: &Vec<Vec<i32>>) -> Result<(), Box<dyn Error>> {
         }
 
         println!("Report {}: {:?}", report_index, report);
-    
+
         let is_safe = safe_report(report);
         if is_safe {
             println!("\tSafe!");
@@ -198,7 +196,7 @@ fn safe_reports(reports: &Vec<Vec<i32>>) -> Result<(), Box<dyn Error>> {
         safe_reports += is_safe as u32;
         if !is_safe {
             let is_safe = safe_report_dampener(report);
-            if (is_safe) {
+            if is_safe {
                 println!("\tSafe (dampened)!");
             }
             safe_reports_dampener += is_safe as u32;
