@@ -69,24 +69,43 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn safe_report_deltas(deltas: &Vec<i32>) -> bool {
-    let mut direction: Option<bool> = None;
+#[derive(Default, Debug, Clone, Copy)]
+enum Direction {
+    #[default]
+    None,
+    Increasing(usize),
+    Decreasing(usize)
+}
 
-    for delta in *deltas {
-        if direction.is_none() {
-            direction = Some(delta >= 0);
-        }
+fn safe_report_deltas<'a, I>(deltas: I, direction: Direction) -> (Direction, Option<usize>)
+    where I: Iterator<Item = &'a i32>
+{
+    let mut direction = direction;
 
-        if !direction.unwrap() {
+    for item in deltas.enumerate() {
+        let (index, delta) = item;
+        let mut delta = *delta;
+
+        let new_direction = match (direction, delta >= 0) {
+            (Direction::None, true) => Direction::Increasing(0),
+            (Direction::None, false) => Direction::Decreasing(0),
+            (Direction::Increasing(i), true) => Direction::Increasing(i + 1),
+            (Direction::Decreasing(i), false) => Direction::Decreasing(i + 1),
+            (_, _) => return (direction, Some(index)),
+        };
+
+        if let Direction::Decreasing(_) = new_direction {
             delta = -delta;
         }
 
         if (delta < 1) || (delta > 3) {
-            return false;
+            return (new_direction, Some(index));
         }
+
+        direction = new_direction;
     }
 
-    true;
+    (Direction::None, None)
 }
 
 fn safe_report(report: &Vec<i32>) -> bool {
@@ -212,7 +231,7 @@ fn safe_reports(reports: &Vec<OneReport>) -> Result<(), Box<dyn Error>> {
     let mut safe_reports_dampener: u32 = 0u32;
 
     for report in reports {
-        if report.len() < 2 {
+        if report.report.len() < 2 {
             return Err(
                 ProgramError::DataError(report_index, String::from("Report too short.")).into(),
             );
@@ -240,5 +259,9 @@ fn safe_reports(reports: &Vec<OneReport>) -> Result<(), Box<dyn Error>> {
 
     println!("Safe reports: {}", safe_reports);
     println!("Safe reports(dampened): {safe_reports_dampener}");
+
+    let safe_reports_deltas = reports.iter().filter(|r| safe_report_deltas(r.deltas.iter(), Default::default()).1.is_none()).count();
+    println!("safe_reports(deltas):{safe_reports_deltas}");
+
     Ok(())
 }
