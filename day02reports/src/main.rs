@@ -83,8 +83,9 @@ fn safe_report_deltas<'a, I>(deltas: I, direction: Direction) -> (Direction, Opt
     let mut direction = direction;
 
     for item in deltas.enumerate() {
-        let (index, delta) = item;
-        let mut delta = *delta;
+        let (index, &delta) = item;
+
+        let mut delta = delta;
 
         let new_direction = match (direction, delta >= 0) {
             (Direction::None, true) => Direction::Increasing(0),
