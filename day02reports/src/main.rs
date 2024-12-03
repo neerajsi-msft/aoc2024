@@ -26,6 +26,11 @@ enum ProgramError {
     DataError(u32, String),
 }
 
+struct OneReport {
+    report: Vec<i32>,
+    deltas: Vec<i32>,
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = env::args();
     if args.len() != 2 {
@@ -36,7 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Opening file {}", file_name);
 
-    let mut reports: Vec<Vec<i32>> = Vec::new();
+    let mut reports: Vec<OneReport> = Vec::new();
 
     let mut line_number = 0u32;
     let reader = BufReader::new(File::open(file_name)?);
@@ -49,12 +54,39 @@ fn main() -> Result<(), Box<dyn Error>> {
         let report: Vec<i32> = vals
             .map(|val_str| val_str.parse::<i32>())
             .collect::<Result<_, _>>()?;
-        reports.push(report);
+
+        let deltas: Vec<i32> = report
+            .as_slice()
+            .windows(2)
+            .map(|vals| vals[1] - vals[0])
+            .collect();
+        
+        reports.push(OneReport{report, deltas});
     }
 
     safe_reports(&reports)?;
 
     Ok(())
+}
+
+fn safe_report_deltas(deltas: &Vec<i32>) -> bool {
+    let mut direction: Option<bool> = None;
+
+    for delta in *deltas {
+        if direction.is_none() {
+            direction = Some(delta >= 0);
+        }
+
+        if !direction.unwrap() {
+            delta = -delta;
+        }
+
+        if (delta < 1) || (delta > 3) {
+            return false;
+        }
+    }
+
+    true;
 }
 
 fn safe_report(report: &Vec<i32>) -> bool {
@@ -174,7 +206,7 @@ fn safe_report_dampener(report: &Vec<i32>) -> bool {
     }
 }
 
-fn safe_reports(reports: &Vec<Vec<i32>>) -> Result<(), Box<dyn Error>> {
+fn safe_reports(reports: &Vec<OneReport>) -> Result<(), Box<dyn Error>> {
     let mut report_index = 0u32;
     let mut safe_reports: u32 = 0u32;
     let mut safe_reports_dampener: u32 = 0u32;
@@ -186,16 +218,16 @@ fn safe_reports(reports: &Vec<Vec<i32>>) -> Result<(), Box<dyn Error>> {
             );
         }
 
-        println!("Report {}: {:?}", report_index, report);
+        println!("Report {}: {:?}", report_index, report.report);
 
-        let is_safe = safe_report(report);
+        let is_safe = safe_report(&report.report);
         if is_safe {
             println!("\tSafe!");
         }
 
         safe_reports += is_safe as u32;
         if !is_safe {
-            let is_safe = safe_report_dampener(report);
+            let is_safe = safe_report_dampener(&report.report);
             if is_safe {
                 println!("\tSafe (dampened)!");
             }
