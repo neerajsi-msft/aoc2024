@@ -31,6 +31,14 @@ struct OneReport {
     deltas: Vec<i32>,
 }
 
+fn report_to_deltas(report: &[i32]) -> Vec<i32>
+{
+    report
+        .windows(2)
+        .map(|vals| vals[1] - vals[0])
+        .collect()
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = env::args();
     if args.len() != 2 {
@@ -55,11 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .map(|val_str| val_str.parse::<i32>())
             .collect::<Result<_, _>>()?;
 
-        let deltas: Vec<i32> = report
-            .as_slice()
-            .windows(2)
-            .map(|vals| vals[1] - vals[0])
-            .collect();
+        let deltas  = report_to_deltas(report.as_slice());
         
         reports.push(OneReport{report, deltas});
     }
@@ -69,44 +73,96 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 enum Direction {
     #[default]
     None,
-    Increasing(usize),
-    Decreasing(usize)
+    Increasing,
+    Decreasing
 }
 
-fn safe_report_deltas<'a, I>(deltas: I, direction: Direction) -> (Direction, Option<usize>)
+fn is_good_delta(delta: i32, direction: Direction) -> bool
+{
+    if direction == Direction::None { return false; }
+    let delta = if direction == Direction::Decreasing { -delta } else { delta };
+    (1..=3).contains(&delta)
+}
+
+fn new_direction_from_delta(delta: i32, direction: Direction) -> Direction
+{
+    match (direction, delta >= 0) {
+        (Direction::None, true) => Direction::Increasing,
+        (Direction::None, false) => Direction::Decreasing,
+        (Direction::Increasing, true) => Direction::Increasing,
+        (Direction::Decreasing, false) => Direction::Decreasing,
+        (_, _) => Direction::None,
+    }
+}
+
+fn safe_report_deltas_internal<'a, I>(deltas: I, direction: Direction) -> (Direction, Option<usize>)
     where I: Iterator<Item = &'a i32>
 {
     let mut direction = direction;
 
-    for item in deltas.enumerate() {
-        let (index, &delta) = item;
+    for (index, &delta) in deltas.enumerate() {
+        let new_direction = new_direction_from_delta(delta, direction);
 
-        let mut delta = delta;
-
-        let new_direction = match (direction, delta >= 0) {
-            (Direction::None, true) => Direction::Increasing(0),
-            (Direction::None, false) => Direction::Decreasing(0),
-            (Direction::Increasing(i), true) => Direction::Increasing(i + 1),
-            (Direction::Decreasing(i), false) => Direction::Decreasing(i + 1),
-            (_, _) => return (direction, Some(index)),
-        };
-
-        if let Direction::Decreasing(_) = new_direction {
-            delta = -delta;
-        }
-
-        if (delta < 1) || (delta > 3) {
-            return (new_direction, Some(index));
+        if !is_good_delta(delta, new_direction) {
+            return (direction, Some(index));
         }
 
         direction = new_direction;
     }
 
     (Direction::None, None)
+}
+
+fn safe_report_deltas(deltas: &[i32]) -> bool
+{
+    safe_report_deltas_internal(deltas.iter(), Default::default()).1.is_none()
+}
+
+fn safe_report_deltas_dampener(deltas: &[i32]) -> bool
+{
+    let (direction, bad_index) = safe_report_deltas_internal(deltas.iter(), Default::default());
+    if bad_index.is_none() {
+        return true;
+    }
+
+    let bad_index = bad_index.unwrap();
+    let bad_delta = deltas[bad_index];
+
+    //println!{"\tbad_index:{bad_index} bad_delta:{bad_delta}"}
+
+    if bad_index + 1usize < deltas.len() {
+        let delta = bad_delta + deltas[bad_index + 1];
+        let new_direction = new_direction_from_delta(delta, direction);
+        if is_good_delta(delta, new_direction) {
+            if safe_report_deltas_internal(deltas.iter().skip(bad_index + 2), new_direction).1.is_none() {
+                return true;
+            }
+        }
+    }
+
+    // If the first index is bad and we didn't use it to fix the subsequent delta, we can just drop it.
+    if (bad_index == 0) {
+        return safe_report_deltas_internal(deltas.iter().skip(1), Default::default()).1.is_none();
+    }
+    
+    // see if we can fold this into the previous delta.
+    let delta = bad_delta + deltas[bad_index - 1];
+    let prev_direction = if bad_index == 1 { Direction::None } else { direction };
+    let new_direction = new_direction_from_delta(delta, prev_direction);
+    if is_good_delta(delta, new_direction) {
+        return safe_report_deltas_internal(deltas.iter().skip(bad_index + 1), new_direction).1.is_none();
+    }
+
+    // If this is the last index and it wasn't folded backward, just drop it.
+    if bad_index + 1usize == deltas.len() {
+        return true;
+    }
+
+    false
 }
 
 fn safe_report(report: &Vec<i32>) -> bool {
@@ -124,7 +180,7 @@ fn safe_report(report: &Vec<i32>) -> bool {
         }
 
         if delta < 1 || delta > 3 {
-            println!("\tUnsafe delta: {}", delta);
+            // println!("\tUnsafe delta: {}", delta);
             return false;
         }
     }
@@ -132,16 +188,14 @@ fn safe_report(report: &Vec<i32>) -> bool {
     true
 }
 
-fn safe_report_dampener(report: &Vec<i32>) -> bool {
+fn safe_report_dampener(report: &[i32]) -> bool {
     if report.len() < 3 {
         return false;
     }
 
-    let deltas: Vec<i32> = report
-        .as_slice()
+    let deltas = report
         .windows(2)
-        .map(|vals| vals[1] - vals[0])
-        .collect();
+        .map(|vals| vals[1] - vals[0]);
 
     //   1       4      2      3
     //       3      -2      1
@@ -157,8 +211,7 @@ fn safe_report_dampener(report: &Vec<i32>) -> bool {
     let mut increase_pos: Option<usize> = None;
     let mut decrease_pos: Option<usize> = None;
     let mut oob_pos: Option<usize> = None;
-    for i in 0..deltas.len() {
-        let delta = deltas[i];
+    for (i, delta) in deltas.enumerate() {
 
         if delta == 0 {
             zero_count += 1;
@@ -176,10 +229,12 @@ fn safe_report_dampener(report: &Vec<i32>) -> bool {
         }
     }
 
+    /*
     println!(
         "\tzero:{zero_count} increase:{increase_count} decrease:{decrease_count} oob:{:?}",
         oob_pos
     );
+    */
 
     if zero_count != 0 {
         if zero_count > 1 {
@@ -194,13 +249,13 @@ fn safe_report_dampener(report: &Vec<i32>) -> bool {
 
         assert_eq!(report[zero_pos], report[zero_pos + 1]);
 
-        let mut new_report = report.clone();
+        let mut new_report = Vec::from(report);
         new_report.remove(zero_pos);
 
         return safe_report(&new_report);
     } else {
         let try_remove = |pos: usize| {
-            let mut new_report = report.clone();
+            let mut new_report = Vec::from(report);
             new_report.remove(pos);
             return safe_report(&new_report);
         };
@@ -261,8 +316,17 @@ fn safe_reports(reports: &Vec<OneReport>) -> Result<(), Box<dyn Error>> {
     println!("Safe reports: {}", safe_reports);
     println!("Safe reports(dampened): {safe_reports_dampener}");
 
-    let safe_reports_deltas = reports.iter().filter(|r| safe_report_deltas(r.deltas.iter(), Default::default()).1.is_none()).count();
+    let safe_reports_deltas = reports.iter().filter(|&r| safe_report_deltas(&r.deltas)).count();
     println!("safe_reports(deltas):{safe_reports_deltas}");
+
+    let safe_reports_deltas_dampener = reports.iter().filter(|&r| safe_report_deltas_dampener(&r.deltas)).count();
+    println!("safe_reports_deltas_dampener: {safe_reports_deltas_dampener}");
+
+    reports.iter().enumerate().for_each(|(index, r)| {
+        if safe_report_deltas_dampener(&r.deltas) != (safe_report(&r.report) || safe_report_dampener(&r.report)) {
+            println!("Mismatch report:({:?}) deltas:({:?})", r.report, r.deltas);
+        }
+    });
 
     Ok(())
 }
