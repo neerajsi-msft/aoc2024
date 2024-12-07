@@ -487,24 +487,25 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
 
             let mut cycle_count = 0usize;
-            for j in 0..puzzle.cols {
-                let pos = (i, j);
-
-                TLS_STATE.with_borrow_mut(
-                    |state| {
-                        if matches!(state, TlsState::Uninitialized) {
-                            let tls_data = TlsData{new_puzzle: puzzle.clone(),
-                                 visited_with_directions:  BitSet::with_capacity(puzzle.rows * puzzle.cols * DIRECTIONS.len())};
-
+            
+            TLS_STATE.with_borrow_mut(
+                |state| {
+                    if matches!(state, TlsState::Uninitialized) {
+                        let tls_data = TlsData{new_puzzle: puzzle.clone(),
+                            visited_with_directions:  BitSet::with_capacity(puzzle.rows * puzzle.cols * DIRECTIONS.len())};
+                            
                             *state = TlsState::Initialized(tls_data);
                         }
-
+                        
                         let TlsState::Initialized(data) = state else {panic!("Unexpected tls state")};
+                        
+                        for j in 0..puzzle.cols {
+                            let pos = (i, j);
 
-                        cycle_count += part2_checkone(&puzzle, &pos, &visited, &mut data.new_puzzle, &mut data.visited_with_directions) as usize;
+                            cycle_count += part2_checkone(&puzzle, &pos, &visited, &mut data.new_puzzle, &mut data.visited_with_directions) as usize;
+                        }
                     }
-                )
-            }
+                );
 
             cycle_count
         }
@@ -531,9 +532,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     dbg!(jumping_cycle_count);
 
-    let serial_time = serial_timer.elapsed().as_micros();
-    let parallel_time = parallel_timer.elapsed().as_micros();
-    let jumping_time = jumping_timer.elapsed().as_micros();
+    let serial_time = serial_timer.elapsed().as_secs_f32();
+    let parallel_time = parallel_timer.elapsed().as_secs_f32();
+    let jumping_time = jumping_timer.elapsed().as_secs_f32();
     dbg!(serial_time);
     dbg!(parallel_time);
     dbg!(serial_time / parallel_time);
