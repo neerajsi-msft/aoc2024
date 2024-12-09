@@ -1,0 +1,9 @@
+[package]
+name = "day09"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.94"
+petgraph = "0.6.5"
+thiserror = "2.0.6"
