@@ -1,0 +1,16 @@
+[package]
+name = "day08"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.94"
+bit-set = "0.8.0"
+itertools = "0.13.0"
+petgraph = "0.6.5"
+rayon = "1.10.0"
+regex = "1.11.1"
+scan_fmt = "0.2.6"
+stopwatch = "0.0.7"
+thiserror = "2.0.4"
+vecmath = "1.0.0"

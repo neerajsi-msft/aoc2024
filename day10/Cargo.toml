@@ -1,0 +1,12 @@
+[package]
+name = "day10"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.94"
+bit-set = "0.8.0"
+is_sorted = "0.1.1"
+itertools = "0.13.0"
+petgraph = "0.6.5"
+thiserror = "2.0.6"
