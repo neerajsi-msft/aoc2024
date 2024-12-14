@@ -315,21 +315,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (part1, part2) = time_it("part1", || solve_part1(&puzzle));
     dbg!(part1);
 
-    /*
-    let mut v = puzzle.stones[0];
-    let mut v2 = None;
-    dbg!(v);
-    for i in 0..75 {
-        let new = stone_rule(v);
-        let new2 = v2.map(|s| stone_rule(s).0).or(new.1);
-
-        v = new.0;
-        v2 = new2;
-        println!("{i}: {v:?} {v2:?}");
-    }
-    
-    let part2 = time_it("part2", || solve_part2(&puzzle));
-    */
     dbg!(part2);
     Ok(())
 }

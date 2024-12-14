@@ -46,11 +46,16 @@ pub enum GridDirection4 {
 pub trait Grid<IndexType>
     where IndexType: num::Num  + Copy + Clone + Ord + Eq {
     
-    fn get_origin() -> [IndexType; 2] {
+    fn top_left() -> [IndexType; 2] {
         [Zero::zero(); 2]
     }
 
-    
+    fn rows() -> IndexType;
+    fn cols() -> IndexType;
+
+    fn bottom_right() -> [IndexType; 2] {
+
+    }
 }
 
 #[cfg(test)]
