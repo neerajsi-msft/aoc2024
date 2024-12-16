@@ -1,0 +1,12 @@
+[package]
+name = "day14"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.23", features = ["derive"] }
+crossterm = "0.28.1"
+nalgebra = "0.33.2"
+ratatui = "0.29.0"
+scan_fmt = "0.2.6"
+thiserror = "2.0.7"
