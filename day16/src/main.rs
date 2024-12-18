@@ -13,9 +13,11 @@ use std::mem;
 use std::mem::MaybeUninit;
 use std::num::Saturating;
 use std::process::Output;
+use std::u64;
 use itertools::GroupingMapBy;
 use itertools::Itertools;
 use itertools::PadUsing;
+use num_traits::SaturatingSub;
 use scan_fmt::scan_fmt;
 use clap::Parser;
 use thiserror::Error;
@@ -360,11 +362,12 @@ fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
     struct BfsCellInfo {
         costs: [Saturating<u64>; 4],
         in_queue: bool,
+        on_shortest_path: [bool; 4],
     }
 
     impl Default for BfsCellInfo {
         fn default() -> Self {
-            BfsCellInfo{costs:[Saturating(u64::MAX); 4], in_queue: false}
+            BfsCellInfo{costs:[Saturating(u64::MAX); 4], in_queue: false, on_shortest_path: [false;4]}
         }
     }
 
@@ -377,7 +380,7 @@ fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
 
     let end_pos = puzzle.end;
 
-    index!(cells, end_pos) = BfsCellInfo{ costs: [Saturating(0); 4], in_queue: false};
+    index!(cells, end_pos).costs = [Saturating(0); 4];
 
     let push_neighbors = |puzzle: &Puzzle, pos: VectorType, bfs_queue: &mut VecDeque<VectorType>, cells: &mut [Vec<BfsCellInfo>]| {
         if pos == puzzle.start {
@@ -391,7 +394,7 @@ fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
             }
 
             let source_dir = opposite_dir(d);
-            let cost_from = index!(cells, pos).costs[d as usize] + Saturating(1);
+            let cost_from = index!(cells, pos).costs[source_dir as usize] + Saturating(1);
 
             // let's see if we can decrease any costs.
 
@@ -401,9 +404,9 @@ fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
                 let nd = DirectionName::from_usize(nd).unwrap();
                 let new_cost = 
                     if nd == source_dir {
-                        cost_from + Saturating(2 * 1000)
-                    } else if nd == d {
                         cost_from
+                    } else if nd == d {
+                        cost_from + Saturating(2 * 1000)
                     } else {
                         assert!(turns(source_dir).contains(&nd));
                         cost_from + Saturating(1000)
@@ -437,7 +440,85 @@ fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
 
     dbg!(index!(cells, puzzle.start).costs);
 
-    index!(cells, puzzle.start).costs[W as usize].0
+    let cost_from_start =  index!(cells, puzzle.start).costs[W as usize].0;
+
+    dbg!(cost_from_start);
+
+    index!(cells, puzzle.start).on_shortest_path[W as usize] = true;
+    index!(cells, puzzle.start).in_queue = true;
+    index!(cells, puzzle.end).on_shortest_path = [true;4];
+
+    // Now reconstruct the path and count the nodes.
+    bfs_queue.push_back(puzzle.start);
+    
+    while let Some(pos) = bfs_queue.pop_back() {
+        assert!(index!(cells, pos).on_shortest_path.iter().any(|x| *x));
+        index!(cells, pos).in_queue = false;
+        
+        let incoming_shortest_paths = index!(cells, pos).on_shortest_path;
+        for d1 in incoming_shortest_paths.iter().positions(|x| *x) {
+            let cost_from = index!(cells,pos).costs[d1].0 - 1;
+            assert_ne!(cost_from, u64::MAX - 1);
+
+            let d1 = DirectionName::from_usize(d1).unwrap();
+
+            if args.debug {
+                println!("Reconstructing at {pos:?} to {d1:?}. Cost: {cost_from:?} Shortest paths: {incoming_shortest_paths:?}");
+            }
+
+            for d2 in [W,E,N,S] {
+                let needed_cost = 
+                    if d1 == d2 { cost_from }
+                    else if d1 == opposite_dir(d2) { cost_from.saturating_sub(2 * 1000) }
+                    else { cost_from.saturating_sub(1000) };
+                
+                let neighbor_pos = next_pos(pos, d2);
+                let neighbor = &mut index!(cells, neighbor_pos);
+                let neighbor_cost = neighbor.costs[d2 as usize].0;
+
+                println!("\tneighbor({d2:?}) at {neighbor_pos:?}. Cost: {neighbor_cost:?} Needed: {needed_cost}");
+
+                if neighbor_cost == needed_cost &&
+                   !neighbor.on_shortest_path[d2 as usize] {
+
+                    neighbor.on_shortest_path[d2 as usize] = true;
+                    if !neighbor.in_queue {
+                        neighbor.in_queue = true;
+                        bfs_queue.push_back(neighbor_pos);
+                    }                    
+                }
+            }
+
+        }
+
+    }
+
+    fn is_on_shortest_path(c: &BfsCellInfo) -> bool { c.on_shortest_path.iter().any(|v| *v) }
+
+    if args.debug {
+        for r in 0..rows {
+            for c in 0..cols {
+                let ch = 
+                    match puzzle.map[r][c] {
+                        Start => 'S',
+                        End => 'E',
+                        Wall => '#',
+                        Empty => {
+                            if is_on_shortest_path(&cells[r][c]) { 'O' } else { ' ' }
+                        }
+                    };
+
+                print!("{ch}");
+            }
+            println!();
+        }
+    }
+
+    let path_cell_count = cells.iter().positions2d(is_on_shortest_path).count();
+
+    dbg!(path_cell_count);
+
+    cost_from_start
 }
 
 fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
