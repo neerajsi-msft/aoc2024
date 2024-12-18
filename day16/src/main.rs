@@ -1,24 +1,11 @@
 use core::fmt;
-use std::cell;
-use std::cell::Cell;
-use std::collections::HashSet;
 use std::collections::VecDeque;
-use std::default;
-use std::env;
-use std::error;
 use std::fs;
 use std::error::Error;
-use std::iter::Map;
-use std::mem;
-use std::mem::MaybeUninit;
 use std::num::Saturating;
-use std::process::Output;
 use std::u64;
-use itertools::GroupingMapBy;
 use itertools::Itertools;
-use itertools::PadUsing;
 use num_traits::SaturatingSub;
-use scan_fmt::scan_fmt;
 use clap::Parser;
 use thiserror::Error;
 use num_derive::FromPrimitive;
@@ -149,7 +136,7 @@ impl Iterator for DirectionIterator {
     type Item = Location;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while (self.current_dir < DIRECTION.len()) {
+        while self.current_dir < DIRECTION.len() {
             let d = DIRECTION[self.current_dir];
             self.current_dir += 1;
 
@@ -323,7 +310,7 @@ fn cost_step(pos: VectorType, cells: &[Vec<CellInfo>], from_dir: DirectionName) 
     min_costs.iter().enumerate().map(|(d, &c)| {
         let c = if from_dir as usize == d {
             c
-        } else if (opposite_dir(from_dir) as usize == d) {
+        } else if opposite_dir(from_dir) as usize == d {
             c + 1000 * 2
         } else {
             c + 1000
