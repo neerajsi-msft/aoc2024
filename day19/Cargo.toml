@@ -1,0 +1,11 @@
+[package]
+name = "day19"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = "4.5.23"
+clap_derive = "4.5.18"
+itertools = "0.13.0"
+regex = "1.11.1"
+thiserror = "2.0.8"
