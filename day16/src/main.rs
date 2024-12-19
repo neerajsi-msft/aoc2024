@@ -5,12 +5,16 @@ use std::error::Error;
 use std::num::Saturating;
 use std::u64;
 use itertools::Itertools;
-use num_traits::SaturatingSub;
+use neerajsi::Iterable2d;
 use clap::Parser;
 use thiserror::Error;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use nalgebra::Vector2;
+use neerajsi::*;
+
+use neerajsi::CardinalDirectionName as DirectionName;
+use neerajsi::next_pos_cardinal as next_pos;
 
 #[cfg(test)]
 mod tests{
@@ -24,159 +28,10 @@ mod tests{
 
 }
 
-struct PositionIterator<I, J, F>
-{
-    data: I,
-    predicate: F,
-    current_iter: Option<J>,
-    row: usize,
-    col: usize,
-}
-
-impl<I: fmt::Debug, J: fmt::Debug, F> fmt::Debug for PositionIterator<I, J, F>
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PositionIterator")
-         .field("data", &self.data)
-         .field("current_iter", &self.current_iter)
-         .field("row", &self.row)
-         .field("col", &self.col)
-         .finish()
-    }
-}
-
-impl<I, J, F> Iterator for PositionIterator<I, J, F>
-where
-    I: Iterator,
-    I::Item: IntoIterator<IntoIter = J>,
-    J: Iterator,
-    F: Fn(J::Item) -> bool,
-{
-    type Item = (usize, usize);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(ref mut iter) = self.current_iter {
-                while let Some(item) = iter.next() {
-                    self.col += 1;
-                    if (self.predicate)(item) {
-                        return Some((self.row, self.col - 1));
-                    }
-                }
-                self.current_iter = None;
-                self.row += 1;
-                self.col = 0;
-            }
-
-            match self.data.next() {
-                Some(next_iterable) => {
-                    self.current_iter = Some(next_iterable.into_iter());
-                }
-                None => return None,
-            }
-        }
-    }
-}
-
-pub trait Iterable2d : Iterator
-    where Self: Sized,
-          Self::Item: IntoIterator
-{
-    fn positions2d<P>(self, predicate: P) -> PositionIterator<Self, <Self::Item as IntoIterator>::IntoIter, P>
-        where P: Fn(<<Self as Iterator>::Item as IntoIterator>::Item) -> bool
-    {
-        PositionIterator{
-            data: self,
-            predicate,
-            current_iter: None,
-            row: 0,
-            col: 0
-        }
-    }
-}
-
-impl<T> Iterable2d for T where T: Iterator<Item: IntoIterator> + Sized {}
-
-const DIRECTION: [[i64;2]; 4] = [
-    [0, -1], 
-    [0, 1],
-    [-1, 0],
-    [1, 0]
-];
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
-enum DirectionName {
-    W = 0,
-    E = 1,
-    N = 2,
-    S = 3,
-}
-
-const DIRECTION_COUNT: usize = 4;
-
-fn direction_vector(direction: DirectionName) -> VectorType {
-    to_vector2(&DIRECTION[direction as usize])
-}
-
-fn next_pos(pos: VectorType, direction: DirectionName) -> VectorType {
-    pos + direction_vector(direction)
-}
-
-type Location = [usize;2];
-
-#[derive(Debug, Default)]
-struct DirectionIterator {
-    location: Location,
-    rows: usize,
-    cols: usize,
-    current_dir: usize,
-}
-
-impl Iterator for DirectionIterator {
-    type Item = Location;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.current_dir < DIRECTION.len() {
-            let d = DIRECTION[self.current_dir];
-            self.current_dir += 1;
-
-            let new_loc: [Option<usize>;2] = std::array::from_fn(|a| self.location[a].checked_add_signed(d[a] as isize));
-                    
-            if let [Some(r), Some(c)] = new_loc {
-                if (r < self.rows) && (c < self.cols) {
-                    return Some([r, c]);
-                }
-            }
-        }
-
-        None
-    }
-}
-
-impl std::iter::FusedIterator for DirectionIterator {}
-
-
 #[derive(Debug, Error)]
 enum PuzzleError {
     #[error("Parsing error: {0}")]
     ParseError(String),
-}
-
-type VectorType = Vector2<i64>;
-
-fn to_vector2<T>(val: &[T;2]) -> Vector2<T> 
-    where T: Clone + Copy
-{
-    Vector2::new(val[0], val[1])
-}
-
-fn to_vector2_cast(val: &[usize;2]) -> Vector2<i64> 
-{
-    Vector2::new(val[0] as i64, val[1] as i64)
-}
-
-macro_rules! index {
-    ($m:expr, $v:expr) => { ($m)[($v).x as usize][($v).y as usize] };
 }
 
 
@@ -207,7 +62,7 @@ fn draw_map(map: &[Vec<MapSlot>], pos: VectorType, cells: &[Vec<CellInfo>]) {
                     match s {
                         MapSlot::Start | MapSlot::End | MapSlot::Wall => s as isize as u8 as char,
                         MapSlot::Empty => {
-                            match index!(cells, loc).visited {
+                            match index2d!(cells, loc).visited {
                                 VisitState::New => ' ',
                                 VisitState::Done { .. } => 'd',
                                 VisitState::Started { .. } => '?',
@@ -235,13 +90,13 @@ fn draw_path(puzzle: &Puzzle, cells: &[Vec<CellInfo>]) {
     let mut direction = DirectionName::E;
 
     for _ in 0..1000 {
-        if index!(map, pos) == 'E' {
+        if index2d!(map, pos) == 'E' {
             reached_end = true;
             break;
         }
 
         // Skip costing walls.
-        if index!(map, pos) == '#' {
+        if index2d!(map, pos) == '#' {
             continue;
         }
 
@@ -253,7 +108,7 @@ fn draw_path(puzzle: &Puzzle, cells: &[Vec<CellInfo>]) {
             DirectionName::N => '^',
         };
 
-        index!(map, pos) = arrow;
+        index2d!(map, pos) = arrow;
         (pos, direction) = (next_pos(pos, new_dir), new_dir);
     }
 
@@ -291,6 +146,8 @@ impl<> std::ops::Add<u64> for Cost {
     }
 }
 
+pub const DIRECTION_COUNT: usize = DIRECTIONS4.len();
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 enum VisitState {
     #[default]
@@ -305,7 +162,7 @@ struct CellInfo {
 }
 
 fn cost_step(pos: VectorType, cells: &[Vec<CellInfo>], from_dir: DirectionName) -> (Cost, DirectionName) {
-    let VisitState::Done{min_costs} = index!(cells, pos).visited else { panic!("Cell at {pos:?} not visited!")};
+    let VisitState::Done{min_costs} = index2d!(cells, pos).visited else { panic!("Cell at {pos:?} not visited!")};
     
     min_costs.iter().enumerate().map(|(d, &c)| {
         let c = if from_dir as usize == d {
@@ -367,7 +224,7 @@ fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
 
     let end_pos = puzzle.end;
 
-    index!(cells, end_pos).costs = [Saturating(0); 4];
+    index2d!(cells, end_pos).costs = [Saturating(0); 4];
 
     let push_neighbors = |puzzle: &Puzzle, pos: VectorType, bfs_queue: &mut VecDeque<VectorType>, cells: &mut [Vec<BfsCellInfo>]| {
         if pos == puzzle.start {
@@ -376,16 +233,16 @@ fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
 
         for d in [W,E,N,S] {
             let neighbor_pos = next_pos(pos, d);
-            if index!(puzzle.map, neighbor_pos) == Wall {
+            if index2d!(puzzle.map, neighbor_pos) == Wall {
                 continue;
             }
 
             let source_dir = opposite_dir(d);
-            let cost_from = index!(cells, pos).costs[source_dir as usize] + Saturating(1);
+            let cost_from = index2d!(cells, pos).costs[source_dir as usize] + Saturating(1);
 
             // let's see if we can decrease any costs.
 
-            let neighbor_cell = &mut index!(cells, neighbor_pos);
+            let neighbor_cell = &mut index2d!(cells, neighbor_pos);
             let mut decreased = false;
             for (nd, cost) in neighbor_cell.costs.iter_mut().enumerate() {
                 let nd = DirectionName::from_usize(nd).unwrap();
@@ -420,31 +277,31 @@ fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
 
     while let Some(pos) = bfs_queue.pop_front() {
         push_neighbors(puzzle, pos, &mut bfs_queue, &mut cells);
-        index!(cells, pos).in_queue = false;
+        index2d!(cells, pos).in_queue = false;
     }
 
     assert!(cells.iter().flatten().all(|c| !c.in_queue));
 
-    dbg!(index!(cells, puzzle.start).costs);
+    dbg!(index2d!(cells, puzzle.start).costs);
 
-    let cost_from_start =  index!(cells, puzzle.start).costs[W as usize].0;
+    let cost_from_start =  index2d!(cells, puzzle.start).costs[W as usize].0;
 
     dbg!(cost_from_start);
 
-    index!(cells, puzzle.start).on_shortest_path[W as usize] = true;
-    index!(cells, puzzle.start).in_queue = true;
-    index!(cells, puzzle.end).on_shortest_path = [true;4];
+    index2d!(cells, puzzle.start).on_shortest_path[W as usize] = true;
+    index2d!(cells, puzzle.start).in_queue = true;
+    index2d!(cells, puzzle.end).on_shortest_path = [true;4];
 
     // Now reconstruct the path and count the nodes.
     bfs_queue.push_back(puzzle.start);
     
     while let Some(pos) = bfs_queue.pop_back() {
-        assert!(index!(cells, pos).on_shortest_path.iter().any(|x| *x));
-        index!(cells, pos).in_queue = false;
+        assert!(index2d!(cells, pos).on_shortest_path.iter().any(|x| *x));
+        index2d!(cells, pos).in_queue = false;
         
-        let incoming_shortest_paths = index!(cells, pos).on_shortest_path;
+        let incoming_shortest_paths = index2d!(cells, pos).on_shortest_path;
         for d1 in incoming_shortest_paths.iter().positions(|x| *x) {
-            let cost_from = index!(cells,pos).costs[d1].0 - 1;
+            let cost_from = index2d!(cells,pos).costs[d1].0 - 1;
             assert_ne!(cost_from, u64::MAX - 1);
 
             let d1 = DirectionName::from_usize(d1).unwrap();
@@ -460,10 +317,12 @@ fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
                     else { cost_from.saturating_sub(1000) };
                 
                 let neighbor_pos = next_pos(pos, d2);
-                let neighbor = &mut index!(cells, neighbor_pos);
+                let neighbor = &mut index2d!(cells, neighbor_pos);
                 let neighbor_cost = neighbor.costs[d2 as usize].0;
 
-                println!("\tneighbor({d2:?}) at {neighbor_pos:?}. Cost: {neighbor_cost:?} Needed: {needed_cost}");
+                if args.debug {
+                    println!("\tneighbor({d2:?}) at {neighbor_pos:?}. Cost: {neighbor_cost:?} Needed: {needed_cost}");
+                }
 
                 if neighbor_cost == needed_cost &&
                    !neighbor.on_shortest_path[d2 as usize] {
@@ -524,11 +383,11 @@ fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
             return Cost::Infinite;
         }
 
-        if index!(cells, pos).visiting {
+        if index2d!(cells, pos).visiting {
             return Cost::Infinite;
         }
 
-        match index!(puzzle.map, pos) {
+        match index2d!(puzzle.map, pos) {
             MapSlot::Start | MapSlot::Empty => {},
             MapSlot::Wall => return Cost::Infinite,
             MapSlot::End => {
@@ -537,8 +396,8 @@ fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
             }
         }
         
-        if index!(cells, pos).min_cost.is_none() {
-            index!(cells, pos).visiting = true;
+        if index2d!(cells, pos).min_cost.is_none() {
+            index2d!(cells, pos).visiting = true;
 
             let mut costs = [Cost::Infinite; 4];
 
@@ -546,9 +405,9 @@ fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
                 costs[t as usize] = cost_path_recursive(puzzle, next_pos(pos, t), t, cells) + 1;
             }
 
-            index!(cells, pos).visiting = false;
+            index2d!(cells, pos).visiting = false;
 
-            index!(cells, pos).min_cost = Some(costs);
+            index2d!(cells, pos).min_cost = Some(costs);
         };
 
         cost_step(pos, &cells, from_dir).0
@@ -568,7 +427,7 @@ fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
             return Some(Cost::Wall);
         }
 
-        match index!(cells, pos).visited {
+        match index2d!(cells, pos).visited {
             VisitState::Done{min_costs: _} => {
                 Some(cost_step(pos, &cells, from_dir).0)
             }
@@ -578,9 +437,9 @@ fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
             }
 
             VisitState::New => {
-                match index!(puzzle.map, pos) {
+                match index2d!(puzzle.map, pos) {
                     MapSlot::Start | MapSlot::Empty => {
-                        index!(cells, pos).visited = VisitState::Started{min_costs: [None; 4]};
+                        index2d!(cells, pos).visited = VisitState::Started{min_costs: [None; 4]};
                         visit_stack.push(pos);
                         None
                     },
@@ -589,7 +448,7 @@ fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
                     },
                     MapSlot::End => {
                         assert!(pos == puzzle.end);
-                        index!(cells, pos).visited = VisitState::Done{min_costs: [Cost::Known(0); 4]};
+                        index2d!(cells, pos).visited = VisitState::Done{min_costs: [Cost::Known(0); 4]};
                         Some(Cost::Known(0))
                     }
                 }
@@ -601,8 +460,8 @@ fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
     assert_eq!(root_pushed, None);
 
     while let Some(&node_pos) = visit_stack.last() {
-        let VisitState::Started { mut min_costs } = index!(cells, node_pos).visited else {
-            panic!("Unexpected node state at {node_pos:?}: {:?}", index!(cells, node_pos).visited);
+        let VisitState::Started { mut min_costs } = index2d!(cells, node_pos).visited else {
+            panic!("Unexpected node state at {node_pos:?}: {:?}", index2d!(cells, node_pos).visited);
         };
 
         
@@ -622,7 +481,7 @@ fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
 
         if min_costs.iter().all(|c| c.is_some()) {
             let min_costs = min_costs.map(Option::unwrap);
-            index!(cells, node_pos).visited = 
+            index2d!(cells, node_pos).visited = 
                 if min_costs.iter().all(|&c| c == Cost::Cycle) {
                     // If this node is completely cyclical, reset it to New so it could
                     // be visited from another direction.
@@ -635,7 +494,7 @@ fn solve_part1(puzzle: &Puzzle, args: &Args) -> usize
 
             visit_stack.pop();
         } else {
-            index!(cells, node_pos).visited = VisitState::Started { min_costs };
+            index2d!(cells, node_pos).visited = VisitState::Started { min_costs };
         }
     }
 
