@@ -1,0 +1,12 @@
+[package]
+name = "day17"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.23", features = ["derive"] }
+itertools = "0.13.0"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
+scan_fmt = "0.2.6"
+thiserror = "2.0.7"
