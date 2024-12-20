@@ -1,6 +1,54 @@
-use std::fmt;
+use std::{fmt, time::Duration};
 use num_derive::FromPrimitive;
 use nalgebra::Vector2;
+use std::time::Instant;
+
+pub fn time_it<T>(name: &str, f: impl FnOnce() -> T) -> T {
+    let start = Instant::now();
+
+    let ret = f();
+    
+    let elapsed = start.elapsed();
+    println!("{name} took: {elapsed:?}");
+    
+    ret
+}
+
+#[derive(Debug, Clone)]
+pub struct TimingBuffer(Vec<(&'static str, Duration)>);
+
+impl TimingBuffer {
+    pub fn new() -> Self
+    {
+        TimingBuffer(Vec::new())
+    }
+
+    pub fn dump(&mut self) {
+        for (name, elapsed) in self.0.iter() {
+            println!("{name} took: {elapsed:?}");
+        }
+    
+        self.0.clear();
+    }
+}
+
+impl Drop for TimingBuffer {
+    fn drop(&mut self) {
+        self.dump();
+    }
+}
+
+pub fn time_it_buffered<T>(buffer: &mut TimingBuffer, name: &'static str, f: impl FnOnce() -> T) -> T {
+    let start = Instant::now();
+
+    let ret = f();
+    
+    let elapsed = start.elapsed();
+
+    buffer.0.push((name, elapsed));
+
+    ret
+}
 
 pub fn to_vector2<T>(val: &[T;2]) -> Vector2<T> 
     where T: Clone + Copy
