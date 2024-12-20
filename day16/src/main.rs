@@ -187,15 +187,7 @@ fn turns(direction: DirectionName) -> [DirectionName; 2]
     }
 }
 
-fn opposite_dir(direction: DirectionName) -> DirectionName {
-    use DirectionName::*;
-    match direction {
-        N => S,
-        S => N,
-        E => W,
-        W => E,
-    }
-}
+use neerajsi::opposite_dir_cardinal as opposite_dir;
 
 fn solve_part1_bfs(puzzle: &Puzzle, args: &Args) -> u64
 {

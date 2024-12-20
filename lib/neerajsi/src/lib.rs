@@ -2,6 +2,7 @@ use std::{fmt, time::Duration};
 use num_derive::FromPrimitive;
 use nalgebra::Vector2;
 use std::time::Instant;
+use std::iter::IntoIterator;
 
 pub fn time_it<T>(name: &str, f: impl FnOnce() -> T) -> T {
     let start = Instant::now();
@@ -193,7 +194,7 @@ impl From<CardinalDirectionName> for DirectionName {
     }
 }
 
-use num_traits::FromPrimitive;
+use num_traits::{abs, FromPrimitive};
 use DirectionName::*;
 
 pub const DIRECTIONS4: [DirectionName; 4] = [W, E, N, S];
@@ -229,13 +230,78 @@ pub fn next_pos(pos: VectorType, direction: DirectionName) -> VectorType {
     pos + direction_vector(direction)
 }
 
+pub fn opposite_dir_cardinal(direction: CardinalDirectionName) -> CardinalDirectionName {
+    use CardinalDirectionName::*;
+    match direction {
+        N => S,
+        S => N,
+        E => W,
+        W => E,
+    }
+}
+
+pub fn opposite_dir(direction: DirectionName) -> DirectionName {
+    use DirectionName::*;
+    match direction {
+        N => S,
+        S => N,
+        E => W,
+        W => E,
+        NW => SE,
+        NE => SW,
+        SE => NW,
+        SW => NE,
+    }
+}
+
 pub type Location = [usize;2];
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy)]
+pub struct Grid {
+    rows: usize,
+    cols: usize
+}
+
+impl Grid {
+    pub fn new(rows: usize, cols: usize) -> Self {
+        Self { rows, cols }
+    }
+
+    pub fn add_direction(&self, location: Location, direction: [i64;2]) -> Option<Location> {        
+        let new_loc: [Option<usize>;2] = std::array::from_fn(|a| location[a].checked_add_signed(direction[a] as isize));
+                    
+        if let [Some(r), Some(c)] = new_loc {
+            if (r < self.rows) && (c < self.cols) {
+                return Some([r, c]);
+            }
+        }
+
+        None
+    }
+
+    pub fn add_cardinal(&self, location: Location, direction: CardinalDirectionName) -> Option<Location>
+    {
+        self.add_direction(location, DIRECTION_VECTORS[direction as usize])
+    }
+
+    pub fn neighbors_iter_cardinal<'a, I> (&'a self, location: Location, dirs: I) -> impl Iterator<Item = Location> + use<'a, I>
+        where I: IntoIterator<Item = &'a CardinalDirectionName> + 'a
+    {
+        dirs.into_iter().filter_map( move |d| {
+            self.add_direction(location, DIRECTION_VECTORS[*d as usize])
+        })
+    }
+}
+
+pub fn taxicab_distance(a: Location, b: Location) -> usize
+{
+    a.iter().zip(b.iter()).map(|(&a, &b)| a.abs_diff(b)).sum()
+}
+
+#[derive(Debug)]
 pub struct DirectionIterator {
     location: Location,
-    rows: usize,
-    cols: usize,
+    grid: Grid,
     current_dir: usize,
     dir_count: usize
 }
@@ -243,12 +309,12 @@ pub struct DirectionIterator {
 impl DirectionIterator {
     pub fn new_cardinal(location: Location, rows: usize, cols: usize) -> Self
     {
-        Self{location, rows, cols, current_dir:0, dir_count:4}
+        Self{location, grid: Grid{rows, cols}, current_dir:0, dir_count:4}
     }
 
     pub fn new_all_dirs(location: Location, rows: usize, cols: usize) -> Self
     {
-        Self{location, rows, cols, current_dir:0, dir_count:8}
+        Self{location, grid: Grid{rows, cols}, current_dir:0, dir_count:8}
     }
 }
 
@@ -260,12 +326,8 @@ impl Iterator for DirectionIterator {
             let d = DIRECTION_VECTORS[self.current_dir];
             self.current_dir += 1;
 
-            let new_loc: [Option<usize>;2] = std::array::from_fn(|a| self.location[a].checked_add_signed(d[a] as isize));
-                    
-            if let [Some(r), Some(c)] = new_loc {
-                if (r < self.rows) && (c < self.cols) {
-                    return Some([r, c]);
-                }
+            if let Some(new_loc) = self.grid.add_direction(self.location, d) {
+                return Some(new_loc);
             }
         }
 
@@ -275,3 +337,10 @@ impl Iterator for DirectionIterator {
 
 impl std::iter::FusedIterator for DirectionIterator {}
 
+pub fn neighbors_cardinal<'a, T>(map: &'a [Vec<T>], location: Location) -> impl Iterator<Item = (Location, &'a T)>
+{
+    DirectionIterator::new_cardinal(location, map.len(), map[0].len())
+        .map(|d| {
+            (d, &index2d_array!(map, d))
+        })
+}

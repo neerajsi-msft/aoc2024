@@ -40,14 +40,6 @@ fn grid<T>(dimensions: [usize; 2], value: T) -> Vec<Vec<T>>
     vec2d!(dimensions[0], dimensions[1], value)
 }
 
-fn neighbors<'a, T>(map: &'a [Vec<T>], location: Location) -> impl Iterator<Item = (Location, &'a T)>
-{
-    DirectionIterator::new_cardinal(location, map.len(), map[0].len())
-        .map(|d| {
-            (d, &index2d!(map, d))
-        })
-}
-
 fn solve_part1(wall_list: &[(usize, usize)], dimensions: [usize;2], step_count: usize, args: &Args) -> usize
 {
     let mut wall_map = grid(dimensions, false);
@@ -71,7 +63,7 @@ fn solve_part1(wall_list: &[(usize, usize)], dimensions: [usize;2], step_count: 
     while let Some(pos) = bfs_queue.pop_front() {
         let cost = index2d!(cost_map, pos) + 1;
         assert_ne!(cost, usize::MAX);
-        for (n, &wall) in neighbors(&wall_map, pos) {
+        for (n, &wall) in neighbors_cardinal(&wall_map, pos) {
             if wall { continue };
 
             let neighbor_cost = &mut index2d!(cost_map, n);
