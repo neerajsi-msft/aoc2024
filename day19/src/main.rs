@@ -1,5 +1,6 @@
 use clap_derive::Parser;
 use clap::Parser;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
 use std::collections::HashSet;
 use std::{collections::HashMap, ops::Deref};
@@ -25,6 +26,9 @@ struct Args {
 
     #[arg(short, long, default_value_t = false)]
     debug: bool,
+
+    #[arg(short, long, default_value_t = 0)]
+    num_threads: usize,
 }
 
 fn part1(towels: &[&str], haystacks: &[&str], args: &Args, timing: &mut TimingBuffer) -> usize
@@ -141,13 +145,13 @@ fn part2_automata(towels: &[&str], haystacks: &[&str], args: &Args, timing: &mut
         state_table
     });
 
-    let mut total_count = 0;
-    let mut active_states = HashMap::with_capacity(state_table.len());
-    let mut new_active_states= active_states.clone();
-    for h in haystacks {
+    let total_count = 
+        haystacks.par_iter().map_with((HashMap::new(), HashMap::new()),
+            |(active_states, new_active_states), h| {
+            
         active_states.insert(0u16, 1usize);
         for c in h.chars().map(char_to_alpha) {
-            for (&active_state, &count) in &active_states {
+            for (&active_state, &count) in active_states.iter() {
                 if let Some(new_state_idx) = state_table[active_state as usize].out_transitions[c as usize] {
                     let new_state = &state_table[new_state_idx as usize];
                     if new_state.is_accepting_state {
@@ -161,7 +165,7 @@ fn part2_automata(towels: &[&str], haystacks: &[&str], args: &Args, timing: &mut
             }
 
             active_states.clear();
-            std::mem::swap(&mut new_active_states, &mut active_states);
+            std::mem::swap(new_active_states, active_states);
         }
 
         let count: usize = active_states.get(&0).map(|v| *v).unwrap_or_default();
@@ -171,8 +175,9 @@ fn part2_automata(towels: &[&str], haystacks: &[&str], args: &Args, timing: &mut
             println!("{count}: {h}");
         }
 
-        total_count += count as u64;
-    }
+        count as u64
+    })
+    .sum();
 
     total_count
 }
@@ -205,6 +210,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let part2 = time_it("part2 (naive)", || part2(&towels, &haystacks, &args));
 
     dbg!(part2);
+
+    rayon::ThreadPoolBuilder::new().num_threads(args.num_threads).build_global()?;
 
     let part2_automata = time_it("part2-auto", || part2_automata(&towels, &haystacks, &args, &mut timings));
 
