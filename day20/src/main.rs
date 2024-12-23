@@ -34,7 +34,7 @@ struct Puzzle {
 
 use neerajsi::CardinalDirectionName::*;
 
-fn solve_part1_again(puzzle: &Puzzle, cutoff: usize, max_td: usize, args: &Args, timings: &mut TimingBuffer) -> usize {
+fn solve_part1_again(puzzle: &Puzzle, cutoff: usize, max_td: usize, args: &Args, _timings: &mut TimingBuffer) -> usize {
     let grid = Grid::new(puzzle.rows, puzzle.cols);
 
     let mut costs = vec2d!(puzzle.rows, puzzle.cols, None);
@@ -99,7 +99,7 @@ fn solve_part1_again(puzzle: &Puzzle, cutoff: usize, max_td: usize, args: &Args,
     cheats.values().map(|v| v.len()).sum()
 }
 
-fn solve_part1(puzzle: &Puzzle, args: &Args, timings: &mut TimingBuffer) -> usize {
+fn solve_part1(puzzle: &Puzzle, args: &Args, _timings: &mut TimingBuffer) -> usize {
     let rows = puzzle.rows;
     let cols = puzzle.cols;
     let grid = Grid::new(rows, cols);

@@ -1,4 +1,4 @@
-use std::{fmt, time::Duration};
+use std::{fmt, iter::Sum, time::Duration};
 use num_derive::FromPrimitive;
 use nalgebra::Vector2;
 use std::time::Instant;
@@ -194,7 +194,7 @@ impl From<CardinalDirectionName> for DirectionName {
     }
 }
 
-use num_traits::{abs, FromPrimitive};
+use num_traits::{FromPrimitive, Num};
 use DirectionName::*;
 
 pub const DIRECTIONS4: [DirectionName; 4] = [W, E, N, S];
@@ -293,9 +293,10 @@ impl Grid {
     }
 }
 
-pub fn taxicab_distance(a: Location, b: Location) -> usize
+pub fn taxicab_distance<T>(a: [T;2], b: [T;2]) -> T
+    where T: Copy + Clone + Num + Ord + Sum
 {
-    a.iter().zip(b.iter()).map(|(&a, &b)| a.abs_diff(b)).sum()
+    a.iter().zip(b.iter()).map(|(&a, &b)| if a >= b { a - b } else { b - a } ).sum()
 }
 
 #[derive(Debug)]
