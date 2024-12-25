@@ -1,0 +1,12 @@
+[package]
+name = "day24"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arrayvec = "0.7.6"
+clap = { version = "4.5.23", features = ["derive"] }
+itertools = "0.13.0"
+petgraph = "0.6.5"
+scan_fmt = "0.2.6"
+strum = { version = "0.26.3", features = ["derive", "strum_macros"] }
