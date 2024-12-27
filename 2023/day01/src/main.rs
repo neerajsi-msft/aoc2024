@@ -1,5 +1,3 @@
-use std::{array, io::Read};
-
 use neerajsi::{read_stdin_input, SumMultiple};
 
 fn main() {

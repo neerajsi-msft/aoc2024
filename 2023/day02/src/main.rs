@@ -1,4 +1,4 @@
-use std::{cmp::{max, min}, collections::{hash_map, HashMap}};
+use std::{cmp::max, collections::HashMap};
 
 use neerajsi::{read_stdin_input, SumMultiple};
 use scan_fmt::scan_fmt;
