@@ -1,0 +1,12 @@
+[package]
+name = "day18"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = "4.5.23"
+clap_derive = "4.5.18"
+itertools = "0.13.0"
+neerajsi = { version = "0.1.0", path = "../../lib/neerajsi" }
+scan_fmt = "0.2.6"
+thiserror = "2.0.8"

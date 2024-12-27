@@ -1,9 +1,0 @@
-[package]
-name = "day03corruptedmul"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-arrayvec = { version = "0.7.6", features = ["zeroize"] }
-regex = "1.11.1"
-thiserror = "2.0.3"
