@@ -2,6 +2,7 @@ use std::{cmp::{max, min}, collections::BTreeMap, ops::Range};
 
 use neerajsi::*;
 use itertools::Itertools;
+use rangemap::{RangeMap, RangeSet};
 use scan_fmt::scan_fmt;
 
 fn intersect_range(l: &Range<usize>, r: &Range<usize>) -> Range<usize> {
@@ -16,6 +17,17 @@ fn union_range(l: &Range<usize>, r: &Range<usize>) -> Range<usize>
     let start = min(l.start, r.start);
     let end = max(max(l.end, r.end), start);
     start..end
+}
+
+fn shift_range(r: &Range<usize>, delta: isize) -> Range<usize>
+{
+    r.start.checked_add_signed(delta).unwrap()..r.end.checked_add_signed(delta).unwrap()
+}
+
+fn map_range_to_range(r: &Range<usize>, from: &Range<usize>, to: usize) -> Range<usize>
+{
+    let delta = to as isize - from.start as isize;
+    shift_range(r, delta)
 }
 
 /*
@@ -61,9 +73,8 @@ fn map_seed_ranges(seed_ranges: Vec<Range<usize>>,
                         let intersection = intersect_range(&m_range, &cur_range);
                         
                         prev_end = intersection.end;
-                        let delta = d_start as isize - m_range.start as isize;
 
-                        let dest_range = intersection.start.checked_add_signed(delta).unwrap()..intersection.end.checked_add_signed(delta).unwrap();
+                        let dest_range = map_range_to_range(&intersection, &m_range, d_start);
                         if debug {
                             println!("\t\tmaps to: {dest_range:?}");
                         }
@@ -122,6 +133,39 @@ fn map_seed_ranges(seed_ranges: Vec<Range<usize>>,
     .unwrap()
 }
 
+fn map_seed_ranges_rangemaps(
+    seed_ranges: Vec<Range<usize>>,
+    maps: &Vec<(&str, RangeMap<usize, usize>)>
+    ) -> usize
+{
+    let seed_set = RangeSet::from_iter(seed_ranges);
+    maps.iter().fold(
+        seed_set,
+        |in_set, m| {
+            in_set.iter().flat_map(
+                |r| {
+                let overlaps =
+                    m.1.overlapping(r).map(|(or, &dest)| {
+                        let intersection = intersect_range(or, r);
+                        map_range_to_range(&intersection, or, dest)
+                    });
+                
+                let gaps = m.1.gaps(r)
+                    .map(|g|{
+                        intersect_range(&g, r)
+                    });
+                
+                overlaps.chain(gaps)
+            })
+            .collect::<RangeSet<usize>>()
+        }
+    )
+    .iter()
+    .map(|r| r.start)
+    .min()
+    .unwrap()
+}
+
 fn main() {
     let input_raw = read_stdin_input();
     let input = std::str::from_utf8(&input_raw).unwrap();
@@ -172,13 +216,28 @@ fn main() {
     dbg!(min_location);
 
     let seed_ranges1 = seeds.iter().map(|&s| s..(s+1)).collect_vec();
-    let part1_r = map_seed_ranges(seed_ranges1, &maps, debug);
+    let part1_r = map_seed_ranges(seed_ranges1.clone(), &maps, debug);
     dbg!(part1_r);
 
     let seed_ranges = seeds.iter().tuples().map(|(&start, &count)| start..(start+count)).collect_vec();
 
-    let part2 = map_seed_ranges(seed_ranges, &maps, debug);
+    let part2 = time_it("p2", || map_seed_ranges(seed_ranges.clone(), &maps, debug));
 
     dbg!(part2);
+
+    let range_maps = maps.iter().map(|m| {
+        (m.0,
+            RangeMap::from_iter(m.1.iter().map(|(&s_end, &(d_start, count))| {
+                ((s_end-count)..s_end, d_start)
+            }))
+        )
+    }).collect_vec();
+
+
+    let part1_rm = map_seed_ranges_rangemaps(seed_ranges1, &range_maps);
+    let part2_rm = time_it("p2rm", || map_seed_ranges_rangemaps(seed_ranges, &range_maps));
+
+    dbg!(part1_rm);
+    dbg!(part2_rm);
 
 }
