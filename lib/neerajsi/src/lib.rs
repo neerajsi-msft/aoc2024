@@ -1,8 +1,16 @@
-use std::{fmt, iter::Sum, time::Duration};
+use std::{array, fmt, io::Read, iter::Sum, time::Duration};
 use num_derive::FromPrimitive;
 use nalgebra::Vector2;
 use std::time::Instant;
 use std::iter::IntoIterator;
+
+pub fn read_stdin_input() -> Vec<u8>
+{
+    let mut buf = Vec::new();
+    std::io::stdin().read_to_end(&mut buf).unwrap();
+
+    buf
+}
 
 pub fn time_it<T>(name: &str, f: impl FnOnce() -> T) -> T {
     let start = Instant::now();
@@ -157,6 +165,22 @@ pub trait Iterable2d : Iterator
 
 impl<T> Iterable2d for T where T: Iterator<Item: IntoIterator> + Sized {}
 
+pub trait SumMultiple<T, const C: usize>: Iterator
+{
+    fn sum_multiple(self) -> [T; C];
+}
+
+impl<I, T, const C: usize> SumMultiple<T, C> for I
+    where I: Iterator<Item = [T;C]> + Sized,
+          T: Sum + Zero + Clone + Copy
+{
+    fn sum_multiple(self) -> [T; C] {
+        self.fold([T::zero();C], |acc, v| {
+            array::from_fn(|i| acc[i] + v[i])
+        })
+    }
+}
+
 pub const DIRECTION_VECTORS: [[i64;2]; 8] = [
     [0, -1], 
     [0, 1],
@@ -194,7 +218,7 @@ impl From<CardinalDirectionName> for DirectionName {
     }
 }
 
-use num_traits::{FromPrimitive, Num};
+use num_traits::{FromPrimitive, Num, Zero};
 use DirectionName::*;
 
 pub const DIRECTIONS4: [DirectionName; 4] = [W, E, N, S];

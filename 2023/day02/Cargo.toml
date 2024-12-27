@@ -1,7 +1,8 @@
 [package]
-name = "day01"
+name = "day02"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 neerajsi = { version = "0.1.0", path = "../../lib/neerajsi" }
+scan_fmt = "0.2.6"

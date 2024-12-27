@@ -1,8 +1,9 @@
-use std::{array, io::{BufRead, Read}};
+use std::{array, io::Read};
+
+use neerajsi::{read_stdin_input, SumMultiple};
 
 fn main() {
-    let mut buf = Vec::new();
-    std::io::stdin().read_to_end(&mut buf).unwrap();
+    let buf = read_stdin_input();
 
     let number_words = [
         "one",
@@ -55,9 +56,7 @@ fn main() {
 
             [conv_n(first, last), conv_n(firstp2, lastp2)]
         })
-        .fold([0,0], |acc, v| {
-            array::from_fn(|i| acc[i] + v[i])
-        });
+        .sum_multiple();
 
     dbg!(sum);
 }
