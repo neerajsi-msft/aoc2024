@@ -1,0 +1,9 @@
+[package]
+name = "day06"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+indxvec = "1.9.6"
+itertools = "0.13.0"
+neerajsi = { version = "0.1.0", path = "../../lib/neerajsi" }
