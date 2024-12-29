@@ -181,6 +181,26 @@ impl<I, T, const C: usize> SumMultiple<T, C> for I
     }
 }
 
+pub trait CollectArray: Iterator
+    where Self: Sized
+{
+    fn collect_array<const COUNT: usize>(mut self) -> Option<[Self::Item; COUNT]> {
+        let mut array: [Option<Self::Item>; COUNT] = [const{ None }; COUNT];
+
+        for i in 0..COUNT {
+            if let Some(v) = self.next() {
+                array[i] = Some(v);
+            } else {
+                return None;
+            }
+        }
+
+        Some(array.map(|v| v.unwrap()))
+    }
+}
+
+impl<T> CollectArray for T where T: Iterator {}
+
 pub const DIRECTION_VECTORS: [[i64;2]; 8] = [
     [0, -1], 
     [0, 1],

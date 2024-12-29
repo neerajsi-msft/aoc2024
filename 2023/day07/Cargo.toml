@@ -1,0 +1,11 @@
+[package]
+name = "day07"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arrayvec = "0.7.6"
+itertools = "0.13.0"
+neerajsi = { version = "0.1.0", path = "../../lib/neerajsi" }
+scan_fmt = "0.2.6"
+strum = { version = "0.26.3", features = ["derive", "strum_macros"] }
