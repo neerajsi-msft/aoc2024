@@ -163,7 +163,7 @@ pub trait Iterable2d : Iterator
     }
 }
 
-impl<T> Iterable2d for T where T: Iterator<Item: IntoIterator> + Sized {}
+impl<T> Iterable2d for T where T: Iterator<Item: IntoIterator> {}
 
 pub trait SumMultiple<T, const C: usize>: Iterator
 {
@@ -334,6 +334,14 @@ impl Grid {
         dirs.into_iter().filter_map( move |d| {
             self.add_direction(location, DIRECTION_VECTORS[*d as usize])
         })
+    }
+
+    pub fn rows(&self) -> usize {
+        self.rows
+    }
+
+    pub fn cols(&self) -> usize {
+        self.cols
     }
 }
 

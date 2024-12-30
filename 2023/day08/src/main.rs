@@ -77,7 +77,7 @@ fn main() {
                 initial_step_count: usize,
                 cycle_step_count: usize,
                 round_count: u8,
-            };
+            }
 
             let mut target_map = HashMap::new();
             let mut pos = g;

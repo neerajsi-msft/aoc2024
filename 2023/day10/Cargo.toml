@@ -1,0 +1,11 @@
+[package]
+name = "day10"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arrayvec = "0.7.6"
+itertools = "0.13.0"
+neerajsi = { version = "0.1.0", path = "../../lib/neerajsi" }
+num = "0.4.3"
+scan_fmt = "0.2.6"
