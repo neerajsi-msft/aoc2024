@@ -222,6 +222,7 @@ dependencies = [
 name = "neerajsi"
 version = "0.1.0"
 dependencies = [
+ "itertools",
  "nalgebra",
  "num-derive",
  "num-traits",

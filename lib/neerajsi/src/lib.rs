@@ -1,8 +1,9 @@
-use std::{array, fmt, io::Read, iter::Sum, time::Duration};
+use std::{array, fmt, io::Read, iter::Sum, ops::Range, time::Duration};
 use num_derive::FromPrimitive;
 use nalgebra::Vector2;
 use std::time::Instant;
 use std::iter::IntoIterator;
+use itertools::Itertools;
 
 pub fn read_stdin_input() -> Vec<u8>
 {
@@ -342,6 +343,18 @@ impl Grid {
 
     pub fn cols(&self) -> usize {
         self.cols
+    }
+
+    pub fn row_range(&self) -> Range<usize> {
+        0..self.rows
+    }
+
+    pub fn col_range(&self) -> Range<usize> {
+        0..self.cols
+    }
+
+    pub fn cell_range(&self) -> impl Iterator<Item = Location> {
+        self.row_range().cartesian_product(self.col_range()).map(|a| a.into())
     }
 }
 
