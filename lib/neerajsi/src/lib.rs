@@ -181,7 +181,7 @@ impl<I, T, const C: usize> SumMultiple<T, C> for I
         })
     }
 }
-
+/*
 pub trait CollectArray: Iterator
     where Self: Sized
 {
@@ -201,6 +201,7 @@ pub trait CollectArray: Iterator
 }
 
 impl<T> CollectArray for T where T: Iterator {}
+*/
 
 pub const DIRECTION_VECTORS: [[i64;2]; 8] = [
     [0, -1], 
@@ -213,7 +214,7 @@ pub const DIRECTION_VECTORS: [[i64;2]; 8] = [
     [1,-1]
 ];
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive, Hash)]
 pub enum DirectionName {
     W = 0,
     E = 1,
@@ -225,7 +226,7 @@ pub enum DirectionName {
     SW = 7
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive, Hash)]
 pub enum CardinalDirectionName {
     W = DirectionName::W as isize,
     E = DirectionName::E as isize,
@@ -312,6 +313,15 @@ impl Grid {
         Self { rows, cols }
     }
 
+    pub fn from_map<'a, T>(map: &'a [impl AsRef<[T]>]) -> Self 
+    where T: 'a
+    {
+        let rows = map.len();
+        let cols = map[0].as_ref().len();
+        assert!(map.iter().all(|r| r.as_ref().len() == cols));
+        Self::new(rows, cols)
+    }
+
     pub fn add_direction(&self, location: Location, direction: [i64;2]) -> Option<Location> {        
         let new_loc: [Option<usize>;2] = std::array::from_fn(|a| location[a].checked_add_signed(direction[a] as isize));
                     
@@ -337,6 +347,20 @@ impl Grid {
         })
     }
 
+    pub fn new_map<T>(&self, val: T) -> Vec<Vec<T>> 
+    where T: Clone {
+
+        vec![vec![val; self.cols()]; self.rows()]
+    }
+
+    pub fn dimension(&self, d: usize) -> usize {
+        match d {
+            0 => self.rows,
+            1 => self.cols,
+            _ => panic!("invalid dimension {d}"),
+        }
+    }
+
     pub fn rows(&self) -> usize {
         self.rows
     }
@@ -355,6 +379,10 @@ impl Grid {
 
     pub fn cell_range(&self) -> impl Iterator<Item = Location> {
         self.row_range().cartesian_product(self.col_range()).map(|a| a.into())
+    }
+
+    pub fn in_bounds(&self, loc: &Location) -> bool {
+        (loc[0] < self.rows) && (loc[1] < self.cols())
     }
 }
 
